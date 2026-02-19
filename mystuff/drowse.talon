@@ -1,0 +1,2 @@
+drowse [<phrase>]$:
+    speech.disable()

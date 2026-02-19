@@ -1,0 +1,17 @@
+list: user.system_paths
+hostname: SeansMacStudio.localdomain
+-
+user: /Users/seanatsatt
+desktop: /Users/seanatsatt/Desktop
+desk: /Users/seanatsatt/Desktop
+documents: /Users/seanatsatt/Documents
+docks: /Users/seanatsatt/Documents
+downloads: /Users/seanatsatt/Downloads
+music: /Users/seanatsatt/Music
+pictures: /Users/seanatsatt/Pictures
+videos: /Users/seanatsatt/Videos
+talon home: /Users/seanatsatt/.talon
+talon recordings: /Users/seanatsatt/.talon/recordings
+talon user: /Users/seanatsatt/.talon/user
+home: /Users/seanatsatt
+talon helper: /Users/seanatsatt/gitHubRepository/talonHelper

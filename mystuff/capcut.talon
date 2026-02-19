@@ -1,0 +1,120 @@
+
+app: capcut
+-
+
+# Timeline
+split: key(super-b)
+split all: key(super-shift-b)
+select mode: key(a)
+split mode: key(b)
+select leftward: key([)
+select rightward: key(])
+turn off main track magnet: key(p)
+turn off auto snapping: key(n)
+turn on linkage: key(~)
+turn off preview axis: key(s)
+zoom in: key(super-+)
+zoom out: key(super--)
+shuttle left: key(j)
+shuttle stop: key(k)
+shuttle right: key(l)
+delete left: key(q)
+delete right: key(w)
+show variable speed animation: key(alt-k)
+add keyframe: key(shift-alt-k)
+step forward many frames: key(shift-right)
+step back many frames: key(shift-left)
+zoom to fit: key(shift-z)
+
+# Other
+split captions: key(enter)
+captions line wrap: key(super-enter)
+resize text box from center: key(alt-touch)
+
+# Basic
+copy: key(super-c)
+cut: key(super-x)
+paste: key(super-v)
+copy attributes: key(super-shift-c)
+paste attributes: key(super-shift-v)
+delete: key(delete)
+undo: key(super-z)
+reset: key(super-shift-z)
+import media: key(super-i)
+export: key(super-e)
+new project: key(super-n)
+switch material panel: key(tab)
+back to edit: key(super-alt-q)
+full screen: key(super-shift-f)
+exit full screen: key(esc)
+
+# Player
+(play | pause): key(space)
+(enter | exit) full screen: key(super-shift-f)
+zoom in player: key(alt-shift-+)
+zoom out player: key(alt-shift--)
+zoom to fit player: key(alt-shift-z)
+
+# Editing
+in point: key(i)
+out point: key(o)
+select by clip: key(shift-x)
+deselect: key(alt-x)
+group: key(super-g)
+ungroup: key(super-g)
+show speed panel: key(r)
+curve speed: key(shift-b)
+create compound clip: key(alt-g)
+undo compound clip: key(alt-shift-g)
+volume up: key(super-.)
+volume down: key(super-,)
+split scenes: key(shift-s)
+replace clip: key(shift-r)
+generate AI sound effects: key(shift-a)
+image to video: key(shift-i)
+export selected clips: key(shift-e)
+apply as photo: key(shift-p)
+create multi-camera clip: key(shift-m)
+save preset: key(shift-s)
+clear beats: key(shift-b)
+voiceover: key(shift-v)
+record screen: key(alt-super-p)
+open file location: key(end)
+link to media: key(shift-l)
+separate: key(shift-d)
+
+# Navigation
+go end: key(end)
+last cut point: key(up)
+next cut point: key(down)
+go to next marker: key(shift-m)
+go to previous marker: key(ctrl-m)
+previous frame: key(left)
+next frame: key(right)
+go start: key(home)
+
+# Markers
+add marker: key(m)
+add marker new color: key(ctrl-m)
+
+# Transformations
+freeze: key(shift-f)
+reverse: key(shift-r)
+mirror: key(shift-m)
+rotate: key(shift-r)
+crop ratio: key(shift-c)
+trim clip: key(shift-t)
+generate (captions | lyrics): key(shift-g)
+keep vocal: key(shift-k)
+remove vocal: key(shift-r)
+sync video and audio: key(shift-s)
+transcript: key(shift-t)
+
+# Scrolling
+zoom in zoom out: key(super-scroll)
+up down: key(scroll)
+left right: key(ctrl-scroll)
+
+# Clip modifications
+deactivate clip: key(v)
+extract audio: key(shift-s)

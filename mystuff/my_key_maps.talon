@@ -23,7 +23,7 @@ Link:
 Gram:
   key(f8)
 Lumos:
-  key(f1)
+  key(ctrl-alt-cmd-c)
 Encrypt:
   key(super-f3)
 Decrypt:
@@ -60,8 +60,9 @@ sema	 colon: ";"
 con: ""
 dojo email: "thelisteningdojo@gmail.com"
 connect ants: "Connectance"
-clod: "Claude"
+(clod | clawed): "Claude"
 got man: "Gottman"
 Hendrix: "Hendricks" 
 Bri Nay: "Brené Brown"
 clod aws: "claude_aws"
+counsel: "council"

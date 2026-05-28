@@ -69,8 +69,24 @@ def _run(args: list) -> Tuple[int, str, str]:
         return 1, "", str(exc)
 
 
+_DUTI_CANDIDATES = ("/opt/homebrew/bin/duti", "/usr/local/bin/duti")
+
+
+def _duti_path() -> Optional[str]:
+    """Locate the duti binary. Talon's PATH is minimal (/usr/bin:/bin:/usr/sbin:
+    /sbin) and lacks Homebrew dirs, so fall back to explicit Homebrew locations.
+    """
+    found = shutil.which("duti")
+    if found:
+        return found
+    for cand in _DUTI_CANDIDATES:
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
 def _have_duti() -> bool:
-    return shutil.which("duti") is not None
+    return _duti_path() is not None
 
 
 def _file_uti(path: str) -> Optional[str]:
@@ -88,7 +104,10 @@ def _default_app(ext: str) -> Optional[Tuple[str, str, str]]:
 
     Parses the three-line output of `duti -x <ext>`.
     """
-    rc, out, err = _run(["duti", "-x", ext])
+    duti = _duti_path()
+    if duti is None:
+        return None
+    rc, out, err = _run([duti, "-x", ext])
     if rc != 0 or not out:
         return None
     lines = out.splitlines()
@@ -114,7 +133,10 @@ def _candidate_apps(uti: str, default_bid: Optional[str]) -> list:
     Sorted case-insensitive by display name, with the current default (if any)
     moved to the front.
     """
-    rc, out, err = _run(["duti", "-l", uti])
+    duti = _duti_path()
+    if duti is None:
+        return []
+    rc, out, err = _run([duti, "-l", uti])
     if rc != 0 or not out:
         return []
     seen = set()
@@ -135,10 +157,11 @@ def _candidate_apps(uti: str, default_bid: Optional[str]) -> list:
 
 def _set_default(bundle_id: str, uti: str) -> bool:
     """Set bundle_id as the default handler for uti. Returns True on success."""
-    if not _have_duti():
+    duti = _duti_path()
+    if duti is None:
         _notify("install duti first - brew install duti")
         return False
-    rc, out, err = _run(["duti", "-s", bundle_id, uti, "all"])
+    rc, out, err = _run([duti, "-s", bundle_id, uti, "all"])
     if rc != 0:
         _notify(f"duti failed: {err or rc}")
         return False

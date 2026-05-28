@@ -1,12 +1,24 @@
+import math
 import os
 import shutil
 import subprocess
 from typing import Optional, Tuple
 
-from talon import Module, app, ui
+from talon import Module, app, imgui, ui
 from talon.mac import applescript
 
 mod = Module()
+
+DISPLAY_LIMIT = 20
+STRING_LIMIT = 40
+
+_state = {
+    "ext": "",
+    "uti": "",
+    "default_bid": None,
+    "candidates": [],  # list of (name, bundle_id)
+    "page": 1,
+}
 
 
 def _get_selected_file() -> Optional[str]:
@@ -48,62 +60,124 @@ def _notify(msg: str) -> None:
     app.notify(body=msg)
 
 
+def _run(args: list) -> Tuple[int, str, str]:
+    """Run a command; return (returncode, stdout, stderr). Never raises."""
+    try:
+        p = subprocess.run(args, capture_output=True, text=True)
+        return p.returncode, p.stdout.strip(), p.stderr.strip()
+    except Exception as exc:
+        return 1, "", str(exc)
+
+
+def _have_duti() -> bool:
+    return shutil.which("duti") is not None
+
+
 def _file_uti(path: str) -> Optional[str]:
     """Return the UTI (kMDItemContentType) of a file, or None on failure."""
-    try:
-        out = subprocess.run(
-            ["mdls", "-name", "kMDItemContentType", "-raw", path],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-    except subprocess.CalledProcessError as exc:
-        print(f"default_app: mdls failed for {path}: {exc.stderr.strip()}")
-        return None
-    if not out or out == "(null)":
+    rc, out, err = _run(["mdls", "-name", "kMDItemContentType", "-raw", path])
+    if rc != 0 or not out or out == "(null)":
+        if err:
+            print(f"default_app: mdls failed for {path}: {err}")
         return None
     return out
 
 
-def _default_handler(uti: str) -> Optional[str]:
-    """Return the bundle ID of the current default handler for a UTI."""
-    from LaunchServices import (
-        LSCopyDefaultRoleHandlerForContentType,
-        kLSRolesAll,
-    )
+def _default_app(ext: str) -> Optional[Tuple[str, str, str]]:
+    """Return (app_name, app_path, bundle_id) for the ext's default, or None.
 
-    bundle_id = LSCopyDefaultRoleHandlerForContentType(uti, kLSRolesAll)
-    return str(bundle_id) if bundle_id else None
-
-
-def _app_name_for_bundle(bundle_id: str) -> Optional[str]:
-    """Return the localized display name for a bundle ID, or None if unknown."""
-    from AppKit import NSWorkspace
-    from Foundation import NSBundle
-
-    ws = NSWorkspace.sharedWorkspace()
-    url = ws.URLForApplicationWithBundleIdentifier_(bundle_id)
-    if url is None:
+    Parses the three-line output of `duti -x <ext>`.
+    """
+    rc, out, err = _run(["duti", "-x", ext])
+    if rc != 0 or not out:
         return None
-    bundle = NSBundle.bundleWithURL_(url)
-    if bundle is None:
-        return os.path.basename(str(url.path()))
-    info = bundle.localizedInfoDictionary() or bundle.infoDictionary() or {}
-    name = info.get("CFBundleDisplayName") or info.get("CFBundleName")
-    if name:
-        return str(name)
-    return os.path.splitext(os.path.basename(str(url.path())))[0]
+    lines = out.splitlines()
+    if len(lines) >= 3:
+        return lines[0], lines[1], lines[2]
+    return None
 
 
-def _file_info(path: str) -> Optional[Tuple[str, str, Optional[str], Optional[str]]]:
-    """Return (extension, uti, default_bundle_id, default_app_name) for a file."""
-    ext = os.path.splitext(path)[1].lstrip(".").lower()
-    uti = _file_uti(path)
-    if not uti:
-        return None
-    bundle_id = _default_handler(uti)
-    name = _app_name_for_bundle(bundle_id) if bundle_id else None
-    return ext, uti, bundle_id, name
+def _app_name_for_bundle(bundle_id: str) -> str:
+    """Resolve a friendly app name from a bundle id; fall back to the id."""
+    rc, out, err = _run(["mdfind", f"kMDItemCFBundleIdentifier == '{bundle_id}'"])
+    if rc == 0 and out:
+        base = os.path.basename(out.splitlines()[0])
+        if base.endswith(".app"):
+            base = base[:-4]
+        return base or bundle_id
+    return bundle_id
+
+
+def _candidate_apps(uti: str, default_bid: Optional[str]) -> list:
+    """Return [(name, bundle_id), ...] handlers for uti, default pinned first.
+
+    Sorted case-insensitive by display name, with the current default (if any)
+    moved to the front.
+    """
+    rc, out, err = _run(["duti", "-l", uti])
+    if rc != 0 or not out:
+        return []
+    seen = set()
+    items = []
+    for bid in out.splitlines():
+        bid = bid.strip()
+        if not bid or bid in seen:
+            continue
+        seen.add(bid)
+        items.append((_app_name_for_bundle(bid), bid))
+    items.sort(key=lambda pair: pair[0].casefold())
+    if default_bid:
+        front = [p for p in items if p[1] == default_bid]
+        rest = [p for p in items if p[1] != default_bid]
+        items = front + rest
+    return items
+
+
+def _set_default(bundle_id: str, uti: str) -> bool:
+    """Set bundle_id as the default handler for uti. Returns True on success."""
+    if not _have_duti():
+        _notify("install duti first - brew install duti")
+        return False
+    rc, out, err = _run(["duti", "-s", bundle_id, uti, "all"])
+    if rc != 0:
+        _notify(f"duti failed: {err or rc}")
+        return False
+    return True
+
+
+@imgui.open(y=10, x=500)
+def gui_default_picker(gui: imgui.GUI):
+    ext = _state["ext"]
+    uti = _state["uti"]
+    default_bid = _state["default_bid"]
+    candidates = _state["candidates"]
+
+    total_pages = max(1, math.ceil(len(candidates) / DISPLAY_LIMIT))
+    if _state["page"] > total_pages:
+        _state["page"] = 1
+    page = _state["page"]
+
+    gui.text(f"Default for .{ext} ({uti})  ({page}/{total_pages})")
+    gui.line()
+
+    start = (page - 1) * DISPLAY_LIMIT
+    for offset, (name, bid) in enumerate(candidates[start : start + DISPLAY_LIMIT], 1):
+        n = start + offset
+        display = name if len(name) <= STRING_LIMIT else name[: STRING_LIMIT - 2] + ".."
+        star = "*" if bid == default_bid else " "
+        gui.text(f"{star} {n}: {display}")
+
+    gui.spacer()
+    gui.text('say "pick <number>" to set as default')
+    gui.spacer()
+    if total_pages > 1:
+        if gui.button("Next"):
+            _state["page"] = (page % total_pages) + 1
+        if gui.button("Previous"):
+            _state["page"] = ((page - 2) % total_pages) + 1
+        gui.spacer()
+    if gui.button("Default close"):
+        gui_default_picker.hide()
 
 
 @mod.action_class
@@ -114,20 +188,66 @@ class Actions:
         if path is None:
             _notify("select a file in Finder or Path Finder first")
             return
-        info = _file_info(path)
-        if info is None:
-            _notify(f"could not read UTI for {path}")
+        if not _have_duti():
+            _notify("install duti first - brew install duti")
             return
-        ext, uti, bundle_id, name = info
-        if bundle_id is None:
-            _notify(f".{ext} ({uti}): no default app set")
-        else:
-            _notify(f".{ext} ({uti}) -> {name or '?'} [{bundle_id}]")
+        ext = os.path.splitext(path)[1].lstrip(".").lower()
+        if not ext:
+            _notify(f"{os.path.basename(path)} has no extension")
+            return
+        info = _default_app(ext)
+        if info is None:
+            _notify(f".{ext}: no default app set")
+            return
+        name, _app_path, bid = info
+        _notify(f".{ext} -> {name} [{bid}]")
 
     def default_app_change():
         """Open a picker of candidate apps for the selected file's extension."""
-        print("default_app_change: stub")
+        path = _get_selected_file()
+        if path is None:
+            _notify("select a file in Finder or Path Finder first")
+            return
+        if not _have_duti():
+            _notify("install duti first - brew install duti")
+            return
+        uti = _file_uti(path)
+        if not uti:
+            _notify(f"could not read UTI for {path}")
+            return
+        ext = os.path.splitext(path)[1].lstrip(".").lower()
+        default_info = _default_app(ext) if ext else None
+        default_bid = default_info[2] if default_info else None
+        candidates = _candidate_apps(uti, default_bid)
+        if not candidates:
+            _notify(f"no apps registered for {uti}")
+            return
+        _state["ext"] = ext
+        _state["uti"] = uti
+        _state["default_bid"] = default_bid
+        _state["candidates"] = candidates
+        _state["page"] = 1
+        gui_default_picker.show()
+
+    def default_app_pick(n: int):
+        """Set the Nth candidate from the open picker as the default."""
+        if not gui_default_picker.showing:
+            return
+        candidates = _state["candidates"]
+        if n < 1 or n > len(candidates):
+            _notify(f"pick {n}: out of range (1..{len(candidates)})")
+            return
+        name, bundle_id = candidates[n - 1]
+        uti = _state["uti"]
+        if _set_default(bundle_id, uti):
+            _state["default_bid"] = bundle_id
+            _notify(f"set default for {uti} -> {name}")
+            gui_default_picker.hide()
 
     def default_app_refresh():
         """Force LaunchServices to reload by restarting Finder."""
-        print("default_app_refresh: stub")
+        rc, out, err = _run(["killall", "Finder"])
+        if rc == 0:
+            _notify("relaunched Finder")
+        else:
+            _notify(f"killall Finder failed: {err or rc}")

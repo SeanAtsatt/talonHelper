@@ -6,6 +6,9 @@ so that untrusted plugins cannot execute arbitrary shell commands without
 approval through the system_command GUI.
 
 Trusted files and Talon core code pass through unimpeded.
+
+Reload-safe: originals are captured once and stored on the functions themselves
+so that subsequent hot-reloads don't stack patches.
 """
 
 import logging
@@ -18,10 +21,19 @@ from pathlib import Path
 log = logging.getLogger("sandbox")
 
 # ---------------------------------------------------------------------------
-# 1. Save the real (unpatched) implementations
+# 1. Save the real (unpatched) implementations — only on first load
 # ---------------------------------------------------------------------------
-_real_os_system = os.system
-_real_popen_init = subprocess.Popen.__init__
+# On hot-reload, os.system is already our patch. We stash the true originals
+# as attributes so we can recover them across reloads.
+if hasattr(os.system, "_sandbox_original"):
+    _real_os_system = os.system._sandbox_original
+else:
+    _real_os_system = os.system
+
+if hasattr(subprocess.Popen.__init__, "_sandbox_original"):
+    _real_popen_init = subprocess.Popen.__init__._sandbox_original
+else:
+    _real_popen_init = subprocess.Popen.__init__
 
 # ---------------------------------------------------------------------------
 # 2. Constants
@@ -35,6 +47,7 @@ TRUSTED_FILES: set[str] = {
     os.path.join(TALON_USER_DIR, "community", "apps", "apple_terminal", "apple_terminal.py"),
     os.path.join(TALON_USER_DIR, "community", "apps", "iterm", "iterm.py"),
     os.path.join(TALON_USER_DIR, "mystuff", "myHelp.py"),
+    os.path.join(TALON_USER_DIR, "mystuff", "default_app.py"),
     os.path.join(TALON_USER_DIR, "community", "core", "edit_text_file", "edit_text_file.py"),
     os.path.join(TALON_USER_DIR, "community", "core", "app_switcher", "app_switcher.py"),
     os.path.join(TALON_USER_DIR, "talon-ai-tools", "lib", "modelHelpers.py"),
@@ -55,6 +68,9 @@ SAFE_COMMAND_EXECUTABLES: set[str] = {
 # Thread-local reentrancy guard
 _tls = threading.local()
 
+# When False, safe-command pass-throughs are not logged
+verbose = False
+
 # ---------------------------------------------------------------------------
 # 3. Helpers
 # ---------------------------------------------------------------------------
@@ -67,6 +83,23 @@ _INTERACTIVE_CALLER = "<interactive>"
 _INTERACTIVE_FILENAMES = {"<console>", "<stdin>", "<string>", "<input>"}
 
 
+def _frame_file(frame) -> str | None:
+    """Best-effort source path for a frame.
+
+    On current Talon builds, voice-action frames raise AttributeError on
+    frame.f_code.co_filename, so fall back to the module's __file__ via
+    f_globals (which remains accessible). Returns None for frames with no
+    identifiable source — i.e. eval/exec/REPL contexts."""
+    try:
+        return frame.f_code.co_filename
+    except Exception:
+        pass
+    try:
+        return frame.f_globals.get("__file__")
+    except Exception:
+        return None
+
+
 def _get_caller_file() -> str | None:
     """Walk the call stack and return the first frame that lives under
     TALON_USER_DIR.  Returns None if the caller is external (Talon core,
@@ -76,29 +109,27 @@ def _get_caller_file() -> str | None:
     eval/exec context — these are treated as untrusted.
 
     Uses sys._getframe() instead of inspect.stack() to avoid crashes on
-    Talon's C extension frames that lack f_code."""
+    Talon's C extension frames that lack f_code. Source paths come from
+    _frame_file(), which falls back to f_globals['__file__'] because
+    f_code.co_filename is unavailable on Talon voice-action frames."""
     try:
         frame = sys._getframe(2)  # skip _get_caller_file + patched wrapper
     except ValueError:
         return None
     saw_interactive = False
-    saw_any_filename = False
     while frame is not None:
-        try:
-            filename = frame.f_code.co_filename
-        except AttributeError:
-            # Talon REPL frames have f_code in dir() but raise on access.
-            # Treat broken frames as evidence of interactive context.
-            saw_interactive = True
-            frame = frame.f_back
-            continue
-        saw_any_filename = True
-        if filename and filename.startswith(TALON_USER_DIR):
-            return filename
-        if filename in _INTERACTIVE_FILENAMES:
+        filename = _frame_file(frame)
+        if filename:
+            if filename.startswith(TALON_USER_DIR):
+                return filename
+            if filename in _INTERACTIVE_FILENAMES:
+                saw_interactive = True
+        else:
+            # No identifiable source path → eval/exec/REPL frame. Treat as
+            # interactive (untrusted) unless a trusted user-dir frame is
+            # found deeper in the stack.
             saw_interactive = True
         frame = frame.f_back
-    # If we found interactive/broken frames but no user-dir file, block it.
     if saw_interactive:
         return _INTERACTIVE_CALLER
     return None
@@ -167,12 +198,14 @@ def _patched_os_system(cmd):
 
         # Trusted file → allow
         if caller in TRUSTED_FILES:
-            log.debug(f"[SANDBOX] PASS (trusted {os.path.basename(caller)}): {cmd_display}")
+            if verbose:
+                log.debug(f"[SANDBOX] PASS (trusted {os.path.basename(caller)}): {cmd_display}")
             return _real_os_system(cmd)
 
         # Safe command → allow
         if _is_safe_command(cmd):
-            log.debug(f"[SANDBOX] PASS (safe cmd): {cmd_display}")
+            if verbose:
+                log.debug(f"[SANDBOX] PASS (safe cmd): {cmd_display}")
             return _real_os_system(cmd)
 
         # --- BLOCKED ---
@@ -204,12 +237,14 @@ def _patched_popen_init(self, args, **kwargs):
 
         # Trusted file → allow
         if caller in TRUSTED_FILES:
-            log.debug(f"[SANDBOX] PASS (trusted {os.path.basename(caller)}): {cmd_display}")
+            if verbose:
+                log.debug(f"[SANDBOX] PASS (trusted {os.path.basename(caller)}): {cmd_display}")
             return _real_popen_init(self, args, **kwargs)
 
         # Safe command → allow
         if _is_safe_command(args):
-            log.debug(f"[SANDBOX] PASS (safe cmd): {cmd_display}")
+            if verbose:
+                log.debug(f"[SANDBOX] PASS (safe cmd): {cmd_display}")
             return _real_popen_init(self, args, **kwargs)
 
         # --- BLOCKED ---
@@ -236,8 +271,11 @@ def _patched_popen_init(self, args, **kwargs):
 
 
 # ---------------------------------------------------------------------------
-# 6. Install the patches
+# 6. Install the patches (stash originals for reload-safety)
 # ---------------------------------------------------------------------------
+_patched_os_system._sandbox_original = _real_os_system
+_patched_popen_init._sandbox_original = _real_popen_init
+
 os.system = _patched_os_system
 subprocess.Popen.__init__ = _patched_popen_init
 

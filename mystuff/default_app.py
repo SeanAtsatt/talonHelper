@@ -203,27 +203,52 @@ def gui_default_picker(gui: imgui.GUI):
         gui_default_picker.hide()
 
 
+_show_lines: list = []
+
+
+@imgui.open(y=10, x=500)
+def gui_default_show(gui: imgui.GUI):
+    gui.text("Default app")
+    gui.line()
+    for line in _show_lines:
+        gui.text(line)
+    gui.spacer()
+    if gui.button("Default close"):
+        gui_default_show.hide()
+
+
 @mod.action_class
 class Actions:
     def default_app_show():
-        """Show the current default app for the selected file's extension."""
+        """Show the current default app for the selected file's extension
+        in a small on-screen window. Say "default close" to dismiss."""
+        global _show_lines
         path = _get_selected_file()
         if path is None:
-            _notify("select a file in Finder or Path Finder first")
-            return
-        if not _have_duti():
-            _notify("install duti first - brew install duti")
-            return
-        ext = os.path.splitext(path)[1].lstrip(".").lower()
-        if not ext:
-            _notify(f"{os.path.basename(path)} has no extension")
-            return
-        info = _default_app(ext)
-        if info is None:
-            _notify(f".{ext}: no default app set")
-            return
-        name, _app_path, bid = info
-        _notify(f".{ext} -> {name} [{bid}]")
+            lines = ["No file selected.", "Pick a file in Finder or Path Finder."]
+        elif not _have_duti():
+            lines = ["duti not found.", "Install with: brew install duti"]
+        else:
+            ext = os.path.splitext(path)[1].lstrip(".").lower()
+            if not ext:
+                lines = [os.path.basename(path), "(file has no extension)"]
+            else:
+                info = _default_app(ext)
+                if info is None:
+                    lines = [f"Type: .{ext}", "No default app set."]
+                else:
+                    name, _app_path, bid = info
+                    if name.endswith(".app"):
+                        name = name[:-4]
+                    lines = [
+                        f"File:    {os.path.basename(path)}",
+                        f"Type:    .{ext}",
+                        f"Default: {name}",
+                        f"Bundle:  {bid}",
+                    ]
+        _show_lines = lines
+        print("default_app: " + " | ".join(lines))
+        gui_default_show.show()
 
     def default_app_change():
         """Open a picker of candidate apps for the selected file's extension."""
@@ -266,6 +291,11 @@ class Actions:
             _state["default_bid"] = bundle_id
             _notify(f"set default for {uti} -> {name}")
             gui_default_picker.hide()
+
+    def default_app_close():
+        """Hide the default-app info and picker windows."""
+        gui_default_show.hide()
+        gui_default_picker.hide()
 
     def default_app_refresh():
         """Force LaunchServices to reload by restarting Finder."""

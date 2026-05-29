@@ -1,5 +1,6 @@
 import math
 import os
+import re
 import shutil
 import subprocess
 from typing import Optional, Tuple
@@ -61,9 +62,12 @@ def _notify(msg: str) -> None:
 
 
 def _run(args: list) -> Tuple[int, str, str]:
-    """Run a command; return (returncode, stdout, stderr). Never raises."""
+    """Run a command; return (returncode, stdout, stderr). Never raises.
+
+    A timeout guards against a hung CLI tool blocking Talon's voice thread.
+    """
     try:
-        p = subprocess.run(args, capture_output=True, text=True)
+        p = subprocess.run(args, capture_output=True, text=True, timeout=10)
         return p.returncode, p.stdout.strip(), p.stderr.strip()
     except Exception as exc:
         return 1, "", str(exc)
@@ -116,8 +120,15 @@ def _default_app(ext: str) -> Optional[Tuple[str, str, str]]:
     return None
 
 
+_BUNDLE_ID_RE = re.compile(r"^[A-Za-z0-9.\-]+$")
+
+
 def _app_name_for_bundle(bundle_id: str) -> str:
     """Resolve a friendly app name from a bundle id; fall back to the id."""
+    # Bundle ids should only contain these chars; reject anything that could
+    # corrupt the mdfind query string rather than interpolating it blindly.
+    if not _BUNDLE_ID_RE.match(bundle_id):
+        return bundle_id
     rc, out, err = _run(["mdfind", f"kMDItemCFBundleIdentifier == '{bundle_id}'"])
     if rc == 0 and out:
         base = os.path.basename(out.splitlines()[0])

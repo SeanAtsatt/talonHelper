@@ -13,6 +13,18 @@ all-zero samples. Talon (and other mic apps like Superwhisper) then behave as
 if there is no input. Because the mic is dead, **a voice command cannot be the
 recovery trigger** — recovery must be mic-independent and automatic.
 
+## Hardware (this machine)
+
+- **Mac Studio** running macOS 26.4.1. **No built-in microphone** — so the input
+  toggle bounces between the two USB inputs, not a built-in mic.
+- Inputs (from System Settings → Sound → Input):
+  - `Sennheiser Profile` (USB) — the flaky device to babysit (`TARGET_DEVICE`).
+  - `HD Pro Webcam C920` (USB) — the alternate input to bounce through
+    (`AWAY_INPUT`).
+- Default output: `Mac Studio Speakers`.
+- Exact `SwitchAudioSource -a` strings are confirmed at implementation time
+  (System Settings labels usually match, but are verified).
+
 ## Goal
 
 A background watchdog that keeps the mic input alive by **preemptively** running
@@ -69,10 +81,18 @@ in the repo and is deployed to `~/` via the existing manual `cp` sync.
   - Read current default input via `SwitchAudioSource -c -t input`.
   - If it != `TARGET_DEVICE` → log `skip` and exit 0.
   - Else perform the toggle:
-    - input: switch to `INTERNAL_INPUT`, then back to `TARGET_DEVICE`.
-    - output: switch to `INTERNAL_OUTPUT`, then back to `TARGET_OUTPUT`
-      (classic toggle hits output; cheap to also cycle it).
+    - **input (core action):** switch input to `AWAY_INPUT`, then back to
+      `TARGET_DEVICE`. This directly stops and restarts the failing input
+      device's stream — the resource that dies in this bug.
+    - A brief settle delay (~0.3 s) between the two switches so coreaudiod
+      fully tears the stream down before it is re-selected.
   - Log the action and result. Never requires root.
+
+  Output is intentionally **not** cycled. The failing resource is the input
+  stream; cycling input is the direct fix and needs only the two USB inputs
+  that are always present. An output cycle would add a dependency on a second
+  output device for no clear benefit. If the input cycle proves insufficient in
+  practice, an optional output cycle is a documented future knob (see Tuning).
 - `reset` — FR5 heavy reset:
   - Print a clear warning that it will kill audio for **all** apps.
   - Require an explicit confirmation (typed `y`), unless `--yes` is passed.
@@ -86,7 +106,8 @@ in the repo and is deployed to `~/` via the existing manual `cp` sync.
 - `install` — FR7 start:
   - Verify `SwitchAudioSource` is present; if not, print the `brew install
     switchaudio-osx` instruction and exit non-zero.
-  - Verify `TARGET_DEVICE` is set / present in `SwitchAudioSource -a`.
+  - Verify `TARGET_DEVICE` and `AWAY_INPUT` are both present in
+    `SwitchAudioSource -a`; refuse with a clear message if not.
   - Write/refresh the plist into `~/Library/LaunchAgents/` and `launchctl
     bootstrap` (load) it.
 - `uninstall` — FR7 stop: `launchctl bootout` (unload) and remove the plist.
@@ -95,18 +116,17 @@ in the repo and is deployed to `~/` via the existing manual `cp` sync.
 **2. Config block (top of the script):**
 
 ```
-TARGET_DEVICE="<external input device name>"   # the flaky device to babysit
-TARGET_OUTPUT="<external output device name>"   # usually same USB device
-INTERNAL_INPUT="MacBook Pro Microphone"         # built-in mic
-INTERNAL_OUTPUT="MacBook Pro Speakers"          # built-in speakers
+TARGET_DEVICE="Sennheiser Profile"     # flaky USB mic to babysit (default input)
+AWAY_INPUT="HD Pro Webcam C920"        # other USB input to bounce through
 LOG_FILE="$HOME/Library/Logs/talon-audio-watchdog.log"
 INTERVAL=300
 ```
 
-`TARGET_DEVICE` / `TARGET_OUTPUT` are filled during install by listing
-`SwitchAudioSource -a` and picking the external device. Exact internal device
-names are confirmed against `SwitchAudioSource -a` on this machine at
-implementation time.
+Device names are confirmed against `SwitchAudioSource -a` on this machine at
+implementation time (System Settings labels usually match verbatim, but are
+verified). `AWAY_INPUT` must be a currently-present input other than
+`TARGET_DEVICE`; if it is absent at runtime the toggle logs an error and
+no-ops rather than leaving the input on the wrong device.
 
 **3. `watchdog/com.talon.audio-watchdog.plist`** — launchd user agent template:
 `StartInterval` 300, `RunAtLoad` true, `ProgramArguments` = the script path +
@@ -134,8 +154,9 @@ launchd (every 300s)
         -> read current default input
         -> matches TARGET_DEVICE ?
              no  -> log skip, exit
-             yes -> toggle input (internal <-> target)
-                    toggle output (internal <-> target)
+             yes -> switch input to AWAY_INPUT
+                    (settle ~0.3s)
+                    switch input back to TARGET_DEVICE
                     log ok
 ```
 
@@ -151,10 +172,23 @@ user notices dead mic despite toggles
 
 - `SwitchAudioSource` missing → `install` refuses and prints the brew command;
   `toggle` logs an error and exits non-zero (launchd just retries next interval).
+- `AWAY_INPUT` not present at runtime → log an error and no-op (do **not**
+  leave the input parked on a missing/wrong device); exit non-zero.
 - A switch command failing mid-toggle → log the error; best-effort restore to
   `TARGET_DEVICE`; exit non-zero. Next run re-attempts.
 - `reset` without confirmation → abort, no action.
 - Log directory missing → create `~/Library/Logs` if needed.
+
+## Tuning (documented knobs)
+
+- **Interval** — `INTERVAL` in the script + `StartInterval` in the plist
+  (default 300s). Kept in sync by `install`.
+- **Device names** — `TARGET_DEVICE`, `AWAY_INPUT`.
+- **Settle delay** between the two input switches (default ~0.3s).
+- **Optional output cycle** — not implemented by default. If an input-only
+  cycle proves insufficient against the bug, add an output switch
+  (default output → alternate → back) as an additional step. Documented here
+  so the escalation path is known.
 
 ## Testing / verification
 

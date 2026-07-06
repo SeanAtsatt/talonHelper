@@ -84,5 +84,23 @@ test_toggle_acts_on_target
 test_toggle_skips_other_device
 test_toggle_errors_without_away
 
+# --- reset ---
+test_reset_aborts_without_confirm() {
+  local log="$WORK/r1.log" out
+  out="$( export WATCHDOG_LOG="$log"; printf 'n\n' | "$SCRIPT" reset 2>&1 )"
+  assert_contains "warns before reset" "$out" "kill audio"
+  assert_contains "logs aborted" "$(cat "$log")" "aborted"
+}
+test_reset_dryrun_runs_sequence() {
+  local log="$WORK/r2.log" out
+  out="$( export WATCHDOG_LOG="$log" WATCHDOG_DRYRUN=1; "$SCRIPT" reset --yes 2>&1 )"
+  assert_contains "dryrun kills clients" "$out" "CoreAudio"
+  assert_contains "dryrun killall daemons" "$out" "coreaudiod"
+  assert_contains "logs done" "$(cat "$log")" "done"
+}
+
+test_reset_aborts_without_confirm
+test_reset_dryrun_runs_sequence
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

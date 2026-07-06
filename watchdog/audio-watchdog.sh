@@ -89,8 +89,37 @@ cmd_toggle() {
   return 0
 }
 
+cmd_reset() {
+  local assume_yes=0
+  [ "${1:-}" = "--yes" ] && assume_yes=1
+
+  echo "WARNING: this will kill audio for ALL apps (Talon, Superwhisper, etc.)." >&2
+  echo "coreaudiod and every CoreAudio client process will be force-killed." >&2
+  if [ "$assume_yes" -ne 1 ]; then
+    printf 'Proceed? [y/N] ' >&2
+    local ans; read -r ans
+    if [ "$ans" != "y" ] && [ "$ans" != "Y" ]; then
+      log reset - aborted
+      echo "Aborted." >&2
+      return 0
+    fi
+  fi
+
+  if [ "${WATCHDOG_DRYRUN:-0}" = "1" ]; then
+    echo "DRYRUN: lsof | grep CoreAudio | ... | xargs kill -9   (CoreAudio clients)"
+    echo "DRYRUN: sudo killall -9 coreaudiod audiomxd audioclocksyncd audioanalyticsd audioaccessoryd AudioComponentRegistrar"
+    log reset - done
+    return 0
+  fi
+
+  lsof 2>/dev/null | grep CoreAudio | awk '{print $2}' | sort -un | xargs kill -9 2>/dev/null
+  sudo killall -9 coreaudiod audiomxd audioclocksyncd audioanalyticsd audioaccessoryd AudioComponentRegistrar
+  log reset - done
+  echo "CoreAudio reset complete." >&2
+  return 0
+}
+
 # Placeholder command functions (implemented in later tasks).
-cmd_reset()     { :; }
 cmd_install()   { :; }
 cmd_uninstall() { :; }
 cmd_status()    { :; }

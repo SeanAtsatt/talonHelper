@@ -55,8 +55,41 @@ main() {
   esac
 }
 
+current_input() { "$SWITCHAUDIO" -c -t input; }
+
+input_present() {
+  local name="$1" line
+  while IFS= read -r line; do [ "$line" = "$name" ] && return 0; done < <("$SWITCHAUDIO" -a -t input)
+  return 1
+}
+
+set_input() { "$SWITCHAUDIO" -s "$1" -t input >/dev/null; }
+
+cmd_toggle() {
+  local cur
+  cur="$(current_input)"
+  if [ "$cur" != "$TARGET_DEVICE" ]; then
+    log skip "$cur" "not-target"
+    return 0
+  fi
+  if ! input_present "$AWAY_INPUT"; then
+    log error "$AWAY_INPUT" "away-input-absent"
+    return 1
+  fi
+  if ! set_input "$AWAY_INPUT"; then
+    log error "$AWAY_INPUT" "switch-away-failed"
+    return 1
+  fi
+  sleep "$SETTLE"
+  if ! set_input "$TARGET_DEVICE"; then
+    log error "$TARGET_DEVICE" "restore-failed"
+    return 1
+  fi
+  log toggle "$TARGET_DEVICE" ok
+  return 0
+}
+
 # Placeholder command functions (implemented in later tasks).
-cmd_toggle()    { log toggle "not-implemented" skip; }
 cmd_reset()     { :; }
 cmd_install()   { :; }
 cmd_uninstall() { :; }

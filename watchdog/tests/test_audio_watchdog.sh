@@ -44,5 +44,45 @@ test_log_creates_dir
 test_rotation
 test_unknown_subcommand
 
+# --- toggle ---
+setup_stub() {                 # $1 = current input, rest = available inputs
+  local cur="$1"; shift
+  STUB_STATE="$(mktemp -d)"
+  printf '%s\n' "$cur" > "$STUB_STATE/current_input"
+  : > "$STUB_STATE/calls"
+  printf '%s\n' "$@" > "$STUB_STATE/inputs"
+  export STUB_STATE
+  export SWITCHAUDIO_BIN="$HERE/stub-switchaudio.sh"
+  chmod +x "$HERE/stub-switchaudio.sh"
+}
+
+test_toggle_acts_on_target() {
+  local log="$WORK/t2.log"
+  setup_stub "Sennheiser Profile" "Sennheiser Profile" "HD Pro Webcam C920"
+  ( export WATCHDOG_LOG="$log"; SETTLE=0; "$SCRIPT" toggle )
+  assert_eq   "ends on target" "$(cat "$STUB_STATE/current_input")" "Sennheiser Profile"
+  assert_contains "bounced through away" "$(cat "$STUB_STATE/calls")" "HD Pro Webcam C920"
+  assert_contains "logs ok" "$(cat "$log")" "ok"
+}
+test_toggle_skips_other_device() {
+  local log="$WORK/t2b.log"
+  setup_stub "HD Pro Webcam C920" "Sennheiser Profile" "HD Pro Webcam C920"
+  ( export WATCHDOG_LOG="$log"; SETTLE=0; "$SCRIPT" toggle )
+  assert_contains "logs skip" "$(cat "$log")" "skip"
+  # no -s call should have happened
+  case "$(cat "$STUB_STATE/calls")" in *"-s"*) bad "skip does not switch" "found -s";; *) ok "skip does not switch";; esac
+}
+test_toggle_errors_without_away() {
+  local log="$WORK/t2c.log" rc
+  setup_stub "Sennheiser Profile" "Sennheiser Profile"   # away input absent
+  ( export WATCHDOG_LOG="$log"; SETTLE=0; "$SCRIPT" toggle ); rc=$?
+  assert_contains "logs error" "$(cat "$log")" "error"
+  [ "$rc" -ne 0 ] && ok "away-missing exits non-zero" || bad "away-missing exits non-zero" "rc=$rc"
+}
+
+test_toggle_acts_on_target
+test_toggle_skips_other_device
+test_toggle_errors_without_away
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

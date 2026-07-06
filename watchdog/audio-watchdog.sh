@@ -3,6 +3,11 @@
 # Routine path (toggle) needs no root. See watchdog/README.md.
 set -u
 
+# launchd runs agents with a minimal PATH (/usr/bin:/bin:...) that omits
+# Homebrew, so SwitchAudioSource would be "command not found". Prepend both
+# Homebrew prefixes (Apple Silicon and Intel) so the agent finds it.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # ---- config -------------------------------------------------------------
 TARGET_DEVICE="Sennheiser Profile"   # flaky USB mic to babysit (default input)
 AWAY_INPUT="HD Pro Webcam C920"      # other USB input to bounce through
@@ -69,6 +74,10 @@ set_input() { "$SWITCHAUDIO" -s "$1" -t input >/dev/null; }
 cmd_toggle() {
   local cur
   cur="$(current_input)"
+  if [ -z "$cur" ]; then
+    log error - "no-input-device"
+    return 1
+  fi
   if [ "$cur" != "$TARGET_DEVICE" ]; then
     log skip "$cur" "not-target"
     return 0

@@ -122,5 +122,24 @@ test_install_dryrun_writes_plist() {
 test_render_plist
 test_install_dryrun_writes_plist
 
+# --- launchd PATH hardening ---
+test_path_includes_homebrew() {
+  local result
+  result="$( env -i HOME="$HOME" PATH=/usr/bin:/bin bash -c 'source "'"$SCRIPT"'"; echo "$PATH"' )"
+  assert_contains "PATH gains /opt/homebrew/bin" "$result" "/opt/homebrew/bin"
+  assert_contains "PATH keeps /usr/local/bin"    "$result" "/usr/local/bin"
+}
+test_toggle_errors_on_empty_input() {
+  local log="$WORK/t2d.log" rc
+  setup_stub "" "Sennheiser Profile" "HD Pro Webcam C920"   # current input unreadable
+  ( export WATCHDOG_LOG="$log"; SETTLE=0; "$SCRIPT" toggle ); rc=$?
+  assert_contains "empty input logs error" "$(cat "$log")" "error"
+  case "$(cat "$log")" in *"skip"*) bad "empty input is not a skip" "logged skip";; *) ok "empty input is not a skip";; esac
+  [ "$rc" -ne 0 ] && ok "empty input exits non-zero" || bad "empty input exits non-zero" "rc=$rc"
+}
+
+test_path_includes_homebrew
+test_toggle_errors_on_empty_input
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

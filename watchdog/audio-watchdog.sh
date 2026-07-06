@@ -9,6 +9,7 @@ AWAY_INPUT="HD Pro Webcam C920"      # other USB input to bounce through
 INTERVAL=300                         # seconds; keep in sync with the plist
 LABEL="com.talon.audio-watchdog"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 SETTLE=0.3                           # seconds between the two input switches
 
 # ---- overridable for testing -------------------------------------------
@@ -119,10 +120,67 @@ cmd_reset() {
   return 0
 }
 
-# Placeholder command functions (implemented in later tasks).
-cmd_install()   { :; }
-cmd_uninstall() { :; }
-cmd_status()    { :; }
+render_plist() {
+  cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>$SCRIPT_PATH</string>
+    <string>toggle</string>
+  </array>
+  <key>StartInterval</key><integer>$INTERVAL</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>$LOG_FILE</string>
+  <key>StandardErrorPath</key><string>$LOG_FILE</string>
+</dict>
+</plist>
+EOF
+}
+
+cmd_install() {
+  local dryrun="${WATCHDOG_DRYRUN:-0}"
+  if [ "$dryrun" != "1" ]; then
+    if ! command -v "$SWITCHAUDIO" >/dev/null 2>&1; then
+      echo "error: SwitchAudioSource not found. Run: brew install switchaudio-osx" >&2
+      return 1
+    fi
+    if ! input_present "$TARGET_DEVICE"; then
+      echo "error: TARGET_DEVICE '$TARGET_DEVICE' not in current inputs." >&2; return 1
+    fi
+    if ! input_present "$AWAY_INPUT"; then
+      echo "error: AWAY_INPUT '$AWAY_INPUT' not in current inputs." >&2; return 1
+    fi
+  fi
+  mkdir -p "$(dirname "$PLIST")"
+  render_plist > "$PLIST"
+  if [ "$dryrun" = "1" ]; then
+    echo "DRYRUN: wrote $PLIST (launchctl bootstrap skipped)"; return 0
+  fi
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$PLIST"
+  echo "Loaded $LABEL (every ${INTERVAL}s). Log: $LOG_FILE" >&2
+}
+
+cmd_uninstall() {
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  rm -f "$PLIST"
+  echo "Unloaded and removed $LABEL." >&2
+}
+
+cmd_status() {
+  if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
+    echo "agent: LOADED ($LABEL)"
+  else
+    echo "agent: not loaded ($LABEL)"
+  fi
+  echo "--- last 10 log lines ($LOG_FILE) ---"
+  tail -n 10 "$LOG_FILE" 2>/dev/null || echo "(no log yet)"
+}
 
 # Run main only when executed directly (so tests can source this file).
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then

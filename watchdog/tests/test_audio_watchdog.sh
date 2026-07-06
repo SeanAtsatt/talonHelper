@@ -102,5 +102,25 @@ test_reset_dryrun_runs_sequence() {
 test_reset_aborts_without_confirm
 test_reset_dryrun_runs_sequence
 
+# --- plist rendering ---
+test_render_plist() {
+  local out
+  out="$( source "$SCRIPT"; render_plist )"
+  assert_contains "plist has label"    "$out" "com.talon.audio-watchdog"
+  assert_contains "plist has interval" "$out" "<integer>300</integer>"
+  assert_contains "plist calls toggle" "$out" "<string>toggle</string>"
+  assert_contains "plist is xml"       "$out" "<?xml"
+}
+test_install_dryrun_writes_plist() {
+  local plist="$WORK/agent.plist"
+  setup_stub "Sennheiser Profile" "Sennheiser Profile" "HD Pro Webcam C920"
+  ( export WATCHDOG_DRYRUN=1; source "$SCRIPT"; PLIST="$plist"; cmd_install )
+  [ -f "$plist" ] && ok "install writes plist" || bad "install writes plist" "no file"
+  assert_contains "installed plist has label" "$(cat "$plist")" "com.talon.audio-watchdog"
+}
+
+test_render_plist
+test_install_dryrun_writes_plist
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

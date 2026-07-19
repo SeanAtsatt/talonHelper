@@ -3,9 +3,10 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 from typing import Optional, Tuple
 
-from talon import Module, app, imgui, ui
+from talon import Module, app, cron, imgui, ui
 from talon.mac import applescript
 
 mod = Module()
@@ -138,6 +139,25 @@ def _app_name_for_bundle(bundle_id: str) -> str:
     return bundle_id
 
 
+# Apps to always offer in the picker even when they don't register for the
+# file's UTI with LaunchServices (`duti -l` omits them). Shown only if the
+# .app bundle exists on disk.
+_PINNED_APPS = [
+    ("Visual Studio Code", "com.microsoft.VSCode", "Visual Studio Code.app"),
+]
+
+
+def _pinned_candidates() -> list:
+    """Return [(name, bundle_id), ...] for pinned apps that are installed."""
+    items = []
+    for name, bid, bundle in _PINNED_APPS:
+        for apps_dir in ("/Applications", os.path.expanduser("~/Applications")):
+            if os.path.exists(os.path.join(apps_dir, bundle)):
+                items.append((name, bid))
+                break
+    return items
+
+
 def _candidate_apps(uti: str, default_bid: Optional[str]) -> list:
     """Return [(name, bundle_id), ...] handlers for uti, default pinned first.
 
@@ -148,8 +168,8 @@ def _candidate_apps(uti: str, default_bid: Optional[str]) -> list:
     if duti is None:
         return []
     rc, out, err = _run([duti, "-l", uti])
-    if rc != 0 or not out:
-        return []
+    if rc != 0:
+        out = ""  # no registered handlers; still offer the pinned apps below
     seen = set()
     items = []
     for bid in out.splitlines():
@@ -158,12 +178,76 @@ def _candidate_apps(uti: str, default_bid: Optional[str]) -> list:
             continue
         seen.add(bid)
         items.append((_app_name_for_bundle(bid), bid))
+    for name, bid in _pinned_candidates():
+        if bid not in seen:
+            seen.add(bid)
+            items.append((name, bid))
     items.sort(key=lambda pair: pair[0].casefold())
     if default_bid:
         front = [p for p in items if p[1] == default_bid]
         rest = [p for p in items if p[1] != default_bid]
         items = front + rest
     return items
+
+
+def _bundle_id_for_app(app_path: str) -> Optional[str]:
+    """Read CFBundleIdentifier straight from the bundle's Info.plist.
+
+    mdls/Spotlight is not reliable for this, so ask `defaults` instead.
+    """
+    rc, out, err = _run(
+        ["defaults", "read", os.path.join(app_path, "Contents", "Info"),
+         "CFBundleIdentifier"]
+    )
+    if rc == 0 and out:
+        return out
+    return None
+
+
+def _browse_and_set(uti: str) -> None:
+    """Show the macOS application chooser and set the pick as default for uti.
+
+    The chooser blocks until dismissed, so this must run on a worker thread,
+    never on Talon's voice thread.
+    """
+    # NSOpenPanel restricted to .app bundles, starting in /Applications. Much
+    # faster than `choose application`, which enumerates every app on the
+    # system before it can render. `activate` keeps the panel from opening
+    # behind other windows.
+    script = (
+        "activate\n"
+        'POSIX path of (choose file of type {"com.apple.application-bundle"} '
+        "default location (path to applications folder) "
+        'with prompt "Choose the app to set as default")'
+    )
+    try:
+        p = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except Exception as exc:
+        _notify(f"app chooser failed: {exc}")
+        return
+    if p.returncode != 0:
+        err = p.stderr.strip()
+        if "-128" in err:  # user pressed Cancel
+            return
+        _notify(f"app chooser failed: {err or p.returncode}")
+        return
+    app_path = p.stdout.strip().rstrip("/")
+    bid = _bundle_id_for_app(app_path)
+    if not bid:
+        _notify(f"could not read bundle id for {app_path}")
+        return
+    name = os.path.basename(app_path)
+    if name.endswith(".app"):
+        name = name[:-4]
+    if _set_default(bid, uti):
+        _state["default_bid"] = bid
+        _notify(f"set default for {uti} -> {name}")
+        cron.after("0ms", gui_default_picker.hide)
 
 
 def _set_default(bundle_id: str, uti: str) -> bool:
@@ -203,6 +287,8 @@ def gui_default_picker(gui: imgui.GUI):
 
     gui.spacer()
     gui.text('say "pick <number>" to set as default')
+    gui.text('say "default browse" to choose any app')
+    gui.text('(reopen anytime with "default choose")')
     gui.spacer()
     if total_pages > 1:
         if gui.button("Next"):
@@ -302,6 +388,26 @@ class Actions:
             _state["default_bid"] = bundle_id
             _notify(f"set default for {uti} -> {name}")
             gui_default_picker.hide()
+
+    def default_app_browse():
+        """Open the macOS application chooser to pick any app as the default
+        for the selected file's type, even one missing from the picker list."""
+        if not _have_duti():
+            _notify("install duti first - brew install duti")
+            return
+        uti = _state["uti"] if gui_default_picker.showing else ""
+        if not uti:
+            path = _get_selected_file()
+            if path is None:
+                _notify("select a file in Finder or Path Finder first")
+                return
+            uti = _file_uti(path)
+            if not uti:
+                _notify(f"could not read UTI for {path}")
+                return
+            _state["uti"] = uti
+            _state["ext"] = os.path.splitext(path)[1].lstrip(".").lower()
+        threading.Thread(target=_browse_and_set, args=(uti,), daemon=True).start()
 
     def default_app_close():
         """Hide the default-app info and picker windows."""

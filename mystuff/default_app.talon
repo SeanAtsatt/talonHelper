@@ -1,5 +1,6 @@
 default show: user.default_app_show()
-default change: user.default_app_change()
+default (change | choose): user.default_app_change()
+default browse: user.default_app_browse()
 default refresh: user.default_app_refresh()
 default close: user.default_app_close()
 pick <number_small>: user.default_app_pick(number_small)

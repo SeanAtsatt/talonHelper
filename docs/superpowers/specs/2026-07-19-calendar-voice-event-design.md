@@ -101,7 +101,9 @@ delimit the free-dictation title from the structured fields.
   or `"2pm"`.
 - `<user.calendar_duration>` — **new** capture returning **int minutes**. Rules:
   - `<number_small> (minute | minutes | min | mins)` → N
-  - `<number_small> (hour | hours) [<number_small> (minute | minutes)]` → 60·H (+M)
+  - `<number_small> (hour | hours) [<number_small> (minute | minutes)]` → 60·H (+M).
+    Explicitly covers multi-hour durations: "two hours" → 120, "three hours" → 180,
+    "two hours thirty minutes" → 150, etc.
   - `(an | one) hour and (a half | thirty [minutes])` → 90
   - `half an hour` → 30 · `quarter hour` → 15 · `(an | one) hour` → 60
   Omitted in the command → default **60**.
@@ -197,8 +199,8 @@ cover any future subprocess use. No approval-GUI interaction is expected.
      this year.
    - `"February", 30` → rejected (returns error/None, no window).
    - Feb 29 resolves to the next leap year.
-   - Duration parse: "45 minutes"→45, "one hour"→60, "an hour and a half"→90,
-     "half an hour"→30; omitted→60.
+   - Duration parse: "45 minutes"→45, "one hour"→60, "two hours"→120,
+     "three hours"→180, "an hour and a half"→90, "half an hour"→30; omitted→60.
    - Title escaping: `Bob's "1-on-1"` round-trips into a safe script string.
 4. **End-to-end:** speak a real command for an event ~3 days out → confirmation window
    shows correct parse → "yes" → event appears in Calendar. Then exercise one

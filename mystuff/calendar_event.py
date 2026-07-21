@@ -37,7 +37,7 @@ ctx.lists["user.calendar_duration_special"] = {
 
 
 # --- captures --------------------------------------------------------------
-@mod.capture(rule="<user.ordinals> | <user.number_small>")
+@mod.capture(rule="<user.ordinals> | <number_small>")
 def calendar_day(m) -> int:
     """A day of the month, spoken as an ordinal ('twentieth') or number ('20')."""
     return int(m[0])
@@ -45,8 +45,8 @@ def calendar_day(m) -> int:
 
 @mod.capture(
     rule="{user.calendar_duration_special} "
-    "| <user.number_small> {user.calendar_time_unit} "
-    "[<user.number_small> {user.calendar_time_unit}]"
+    "| <number_small> {user.calendar_time_unit} "
+    "[<number_small> {user.calendar_time_unit}]"
 )
 def calendar_duration(m) -> int:
     """A spoken duration -> total minutes."""

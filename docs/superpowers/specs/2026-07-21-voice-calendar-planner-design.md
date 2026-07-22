@@ -43,8 +43,8 @@ supported path and gets a real, persistent Calendars permission.
 **Goals (v1):**
 - View a single day's real events, read live from Calendar.
 - Voice-first editing of that day, addressing events **by number badge**:
-  retitle, move (change time), change duration, toggle all-day ↔ timed,
-  delete / restore.
+  retitle, move (change **day and/or time**), change duration, toggle
+  all-day ↔ timed, delete / restore.
 - Simple in-app creation of a timed or all-day event on the viewed day.
 - **Staging model:** all changes accumulate as a pending diff; nothing touches
   the real Calendar until a single `commit`. `discard` throws staged changes
@@ -55,7 +55,6 @@ supported path and gets a real, persistent Calendars permission.
 **Non-goals (v1 — deferred):**
 - Multi-day / week / month navigation (one day at a time).
 - Recurring events, invitees, locations, alarms, notes.
-- Moving events *across* days.
 - Multiple-calendar management (v1 reads/writes a single default calendar;
   see §9).
 - Editing events by title or time phrase (number addressing only in v1;
@@ -107,6 +106,9 @@ stdlib only.
   `add_timed(title, start, dur)`, `add_all_day(title)`, `retitle(n, title)`,
   `move(n, start)`, `set_duration(n, minutes)`, `make_all_day(n)`,
   `make_timed(n, start, dur=60)`, `delete(n)`, `restore(n)`.
+  `move` takes a full start datetime, so it changes the **day, the time, or
+  both**; the end shifts to preserve the event's duration. Moving an event to
+  another day marks it `edited` and it leaves the current day's view on commit.
 - `pending_changes(model) -> Changes` — the diff to commit (creates / updates /
   deletes), computed from statuses.
 - `display_state(model) -> dict` — JSON the web UI renders (all-day row +
@@ -173,9 +175,13 @@ Events are addressed **by number badge** (1, 2, 3 …) shown on each card.
   `tomorrow` / `today` · `calendar day august fifteenth`
 - **Create (viewed day is the date):** `add lunch at noon` ·
   `add standup at nine for thirty minutes` · `add holiday all day`
-- **Edit by number:** `retitle two eye doctor` · `move three to four pm` ·
-  `duration two ninety minutes` · `make two all day` ·
-  `make two timed at nine am`
+- **Edit by number:** `retitle two eye doctor` · `duration two ninety minutes`
+  · `make two all day` · `make two timed at nine am`
+- **Move (day and/or time):** `move three to four pm` (same day, new time) ·
+  `move three to august twentieth` (new day, same time) ·
+  `move three to august twentieth at nine am` (new day and time). An event
+  moved to another day shows staged with a "→ &lt;date&gt;" marker until
+  commit, then leaves the view.
 - **Delete / undo:** `delete two` · `restore two`
 - **Commit / discard:** `commit` · `discard`
 

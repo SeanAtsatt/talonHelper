@@ -48,7 +48,6 @@ TRUSTED_FILES: set[str] = {
     os.path.join(TALON_USER_DIR, "community", "apps", "iterm", "iterm.py"),
     os.path.join(TALON_USER_DIR, "mystuff", "myHelp.py"),
     os.path.join(TALON_USER_DIR, "mystuff", "default_app.py"),
-    os.path.join(TALON_USER_DIR, "mystuff", "calendar_event.py"),
     os.path.join(TALON_USER_DIR, "community", "core", "edit_text_file", "edit_text_file.py"),
     os.path.join(TALON_USER_DIR, "community", "core", "app_switcher", "app_switcher.py"),
     os.path.join(TALON_USER_DIR, "talon-ai-tools", "lib", "modelHelpers.py"),

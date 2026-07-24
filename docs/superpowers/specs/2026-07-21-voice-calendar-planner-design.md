@@ -1,3 +1,5 @@
+> **SUPERSEDED (2026-07-24).** This custom-build approach was abandoned. On macOS Tahoe every write path to Apple Calendar failed: AppleScript was denied (TCC), pyobjc/EventKit was rejected by hardened-runtime library validation inside both Talon.app and its venv python, and CalDAV writes never persisted. The calendar need is now met via Claude's Google Calendar connector / Cowork — natural-language event management, verified working end-to-end. Kept as a decision record only.
+
 # Voice Calendar Planner — Design Spec
 
 **Date:** 2026-07-21

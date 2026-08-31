@@ -51,6 +51,11 @@ TRUSTED_FILES: set[str] = {
     os.path.join(TALON_USER_DIR, "community", "core", "edit_text_file", "edit_text_file.py"),
     os.path.join(TALON_USER_DIR, "community", "core", "app_switcher", "app_switcher.py"),
     os.path.join(TALON_USER_DIR, "talon-ai-tools", "lib", "modelHelpers.py"),
+    # flex-mouse-grid runs .find_boxes.py (OpenCV box detection) as a
+    # subprocess and parses its stdout, so approval-GUI routing cannot work
+    # here - the GUI executes detached and discards stdout. Re-audit the
+    # subprocess call in this file after any upstream git pull.
+    os.path.join(TALON_USER_DIR, "flex-mouse-grid", "flex_mouse_grid.py"),
     os.path.abspath(__file__),  # this file
 }
 

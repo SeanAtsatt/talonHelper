@@ -38,6 +38,87 @@ For every intercepted call, the sandbox checks the call stack:
 
 The approval GUI (`system_command.py`) presents four options: Allow once, Always allow, Deny once, Deny always. Whitelisted/blacklisted commands are persisted to JSON files.
 
+### Flex Mouse Grid
+
+[brollin/flex-mouse-grid](https://github.com/brollin/flex-mouse-grid) - voice-driven
+mouse positioning via a letter/number grid overlay, named points, and OpenCV box
+detection. Cloned to `~/.talon/user/flex-mouse-grid`; **not vendored into this repo**,
+so the notes below are the recovery record.
+
+#### Install
+
+```sh
+git clone https://github.com/brollin/flex-mouse-grid ~/.talon/user/flex-mouse-grid
+```
+
+`numpy` already ships inside Talon. `opencv-python-headless` is *not* needed in
+Talon's own environment - see the interpreter note below.
+
+#### Two local changes are required
+
+Neither survives a `git pull`. Re-apply both after any upstream update.
+
+**1. Trust entry in `aaa_security.py`.** Box detection shells out to
+`.find_boxes.py` and parses its stdout. The approval GUI cannot serve this case:
+`_execute_pending()` runs approved commands detached via
+`subprocess.Popen(cmd, shell=True)` and discards stdout, so "allow always" can
+never make `boxes` work. Only a `TRUSTED_FILES` entry can. The call is fixed-argv
+with no shell and no user input, which is what makes it auditable - **re-audit that
+subprocess call after every upstream pull.**
+
+**2. Interpreter patch in `flex_mouse_grid.py`.** Upstream runs the box-detection
+script under `sys.executable` (Talon's bundled python). That fails on macOS:
+
+```
+ImportError: dlopen(.../cv2/cv2.abi3.so): code signature not valid for use in
+process: mapping process and mapped file (non-platform) have different Team IDs
+```
+
+Talon.app is signed with a hardened runtime (`flags=0x10000(runtime)`,
+TeamIdentifier `D7SCFBXQXZ`) and does **not** carry the
+`com.apple.security.cs.disable-library-validation` entitlement, so its python
+refuses to load any native extension signed by a different team. Ad-hoc
+re-signing does not help - library validation requires a *matching* Team ID, and
+ad-hoc has none.
+
+The patch replaces `sys.executable` with `_find_boxes_interpreter()`, which probes
+`/usr/bin/python3` then `/opt/homebrew/bin/python3` for one that can import
+`cv2` and `numpy`, falling back to `sys.executable`. System python is unhardened
+(`flags=0x0`, no Team ID), so it loads cv2 fine.
+
+Box detection therefore depends on cv2+numpy being installed for a *system*
+python:
+
+```sh
+/usr/bin/python3 -m pip install --user opencv-python-headless numpy
+```
+
+Currently satisfied by cv2 5.0.0 / numpy 2.0.2 under
+`~/Library/Python/3.9/lib/python/site-packages`. Note `/usr/bin/python3` comes
+from Xcode Command Line Tools; removing CLT breaks `boxes` (the grid and named
+points keep working).
+
+#### Command distinctness
+
+Checked against all 3,205 command rules in `~/.talon/user`. Flex's always-active
+leading words - `box`, `boxes`, `flex`, `map`, `point`, `points`, `remap`,
+`unmap` - are claimed by flex exclusively. Two overlaps, both benign:
+
+| Overlap | Detail |
+|---------|--------|
+| `grid close` | Flex's is global; community's `grid (off/close/hide)` is gated on `user.mouse_grid_showing`, so they collide only when the community grid is open. **Say "flex grid close"** - the `flex` prefix is optional precisely for this. |
+| `press <user.keys>` | Duplicated in `dictation_mode.talon`; both bind to `key(keys)`, so behavior is identical either way. Already global in `keys.talon`, making flex's copy redundant rather than conflicting. |
+
+While the grid is showing, `flex_mouse_grid_active.talon` captures bare
+`<letter>`, `<letter> <letter>`, and bare `<number>`. That shadows any other
+single-letter or bare-number command until the grid closes - by design, but it
+makes the grid effectively modal.
+
+#### Removal
+
+Delete `~/.talon/user/flex-mouse-grid` (`rm -rf -rf`-style removal of that one
+directory), then drop the `flex-mouse-grid` line from `TRUSTED_FILES`.
+
 ## Files
 
 | File | Purpose |
@@ -63,6 +144,7 @@ These files have been audited and are allowed to execute commands directly:
 | `community/core/app_switcher/app_switcher.py` | Application switching |
 | `mystuff/default_app.py` | Default-app management via duti |
 | `talon-ai-tools/lib/modelHelpers.py` | AI model integration |
+| `flex-mouse-grid/flex_mouse_grid.py` | OpenCV box detection subprocess (see Flex Mouse Grid) |
 | `aaa_security.py` | The sandbox itself |
 
 Trust is based on **full file paths**, not basenames. A malicious plugin cannot gain trust by naming itself `apple_terminal.py` in a different directory.

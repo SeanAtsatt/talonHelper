@@ -1,12 +1,31 @@
-# Security Sandbox for Talon Plugin Execution
+# Talon Helper
+
+Custom Talon voice command enhancements: a security sandbox for plugin execution and a directory navigation system with named destinations.
+
+## Features
+
+### Directory Navigation with Named Destinations
+
+Say **"manager show"** to display a GUI panel listing all your named destinations — the spoken-form names you can use with **"go \<name\>"** to jump to any directory. Names are pulled from `user.system_paths` and displayed alphabetically with pagination.
+
+| Voice Command | Action |
+|---------------|--------|
+| `manager show` | Toggle the destinations panel (plus files/folders pickers) |
+| `manager close` | Hide all panels |
+| `go <name>` | Navigate to the named destination |
+| `save here as <name>` | Save the current directory as a new named destination |
+
+Destinations are stored in `community/core/system_paths-<hostname>.talon-list`. Edit that file directly or use the "save here as" voice command to add new entries.
+
+### Security Sandbox
 
 A monkey-patching sandbox that intercepts `os.system()` and `subprocess.Popen()` calls from untrusted Talon plugins, routing them through an approval GUI before execution.
 
-## Problem
+#### Problem
 
 Any `.py` file in `~/.talon/user/` can call `os.system()` or `subprocess.Popen()` to execute arbitrary shell commands with no oversight. The approval GUI in `system_command.py` exists but plugins bypass it by calling subprocess directly.
 
-## How It Works
+#### How It Works
 
 `aaa_security.py` loads first (alphabetically before all other user modules) and patches Python's command execution functions at import time.
 
@@ -23,10 +42,13 @@ The approval GUI (`system_command.py`) presents four options: Allow once, Always
 
 | File | Purpose |
 |------|---------|
-| `~/.talon/user/aaa_security.py` | The sandbox module - patches os.system and subprocess.Popen |
-| `community/core/system_command.py` | Approval GUI - imports real functions as belt-and-suspenders bypass |
+| `aaa_security.py` | Security sandbox - patches os.system and subprocess.Popen |
+| `community/core/system_command.py` | Approval GUI with whitelist/blacklist persistence |
+| `community/tags/file_manager/file_manager.py` | File manager with destinations panel |
+| `community/core/system_paths-*.talon-list` | Named destination definitions (per-hostname) |
+| `community/apps/iterm/iterm.py` | iTerm integration including "save here as" command |
 
-## Trusted Files
+#### Trusted Files
 
 These files have been audited and are allowed to execute commands directly:
 
@@ -43,13 +65,13 @@ These files have been audited and are allowed to execute commands directly:
 
 Trust is based on **full file paths**, not basenames. A malicious plugin cannot gain trust by naming itself `apple_terminal.py` in a different directory.
 
-## Safe Commands
+#### Safe Commands
 
 These executables are allowed from any caller (read-only queries):
 
 `osascript`, `lsof`, `ps`, `hostname`, `which`, `uname`
 
-## Adding a New Trusted File
+#### Adding a New Trusted File
 
 Edit `TRUSTED_FILES` in `aaa_security.py`:
 
@@ -60,7 +82,7 @@ TRUSTED_FILES: set[str] = {
 }
 ```
 
-## Verification
+#### Verification
 
 | Test | Expected |
 |------|----------|
@@ -71,7 +93,7 @@ TRUSTED_FILES: set[str] = {
 | REPL: `subprocess.run(["osascript", ...])` | Passes through (safe command) |
 | Existing voice commands | No regressions |
 
-## Design Decisions
+#### Design Decisions
 
 - **`["false"]` replacement for blocked Popen**: Can't raise an exception (would crash the plugin). Instead, replaces with `false` (Unix utility that exits with code 1). The Popen object is valid but the command doesn't run.
 - **Thread-local reentrancy guard**: Prevents infinite loops if a patched call triggers another patched call.

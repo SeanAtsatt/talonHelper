@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Custom Controls (4001)</key>
+	<array>
+		<dict>
+			<key>Action</key>
+			<integer>10001</integer>
+			<key>Chain Mode</key>
+			<integer>0</integer>
+			<key>Children</key>
+			<array>
+				<dict>
+					<key>Action</key>
+					<integer>33</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>851D2AEB-2828-4C88-BBF2-A44C7FD4FD5F</string>
+						<key>Key Code</key>
+						<integer>12</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>Q</string>
+					</dict>
+					<key>Identifier</key>
+					<string>851D2AEB-2828-4C88-BBF2-A44C7FD4FD5F</string>
+					<key>Move to Edge/Corner Direction</key>
+					<integer>10</integer>
+					<key>Title</key>
+					<string>.talon Top Left Corner</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>33</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>4CFE8192-5C0B-4FEB-9E59-EC1BB94A04B4</string>
+						<key>Key Code</key>
+						<integer>13</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>W</string>
+					</dict>
+					<key>Identifier</key>
+					<string>4CFE8192-5C0B-4FEB-9E59-EC1BB94A04B4</string>
+					<key>Move to Edge/Corner Direction</key>
+					<integer>4</integer>
+					<key>Title</key>
+					<string>.talon Top Right Corner</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>33</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>A1E84BC0-6E93-4C24-BF79-D0F888DBDD4D</string>
+						<key>Key Code</key>
+						<integer>0</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>A</string>
+					</dict>
+					<key>Identifier</key>
+					<string>A1E84BC0-6E93-4C24-BF79-D0F888DBDD4D</string>
+					<key>Move to Edge/Corner Direction</key>
+					<integer>8</integer>
+					<key>Title</key>
+					<string>.talon Bottom Left Corner</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>33</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>8073FEFA-D11A-4187-A75A-4D88531D2A28</string>
+						<key>Key Code</key>
+						<integer>1</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>S</string>
+					</dict>
+					<key>Identifier</key>
+					<string>8073FEFA-D11A-4187-A75A-4D88531D2A28</string>
+					<key>Move to Edge/Corner Direction</key>
+					<integer>6</integer>
+					<key>Title</key>
+					<string>.talon Bottom Right Corner</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>41</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>E2CFABDE-2A0E-4F1A-87CE-36D766100481</string>
+						<key>Key Code</key>
+						<integer>31</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>O</string>
+					</dict>
+					<key>Identifier</key>
+					<string>E2CFABDE-2A0E-4F1A-87CE-36D766100481</string>
+					<key>Loop Through Displays</key>
+					<false/>
+					<key>Move Direction</key>
+					<integer>9</integer>
+					<key>Resize Proportionally</key>
+					<false/>
+					<key>Title</key>
+					<string>.talon Display on the Left</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>41</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>D4C57A88-C257-4CD4-82A1-65364E45E25A</string>
+						<key>Key Code</key>
+						<integer>35</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>P</string>
+					</dict>
+					<key>Identifier</key>
+					<string>D4C57A88-C257-4CD4-82A1-65364E45E25A</string>
+					<key>Loop Through Displays</key>
+					<false/>
+					<key>Move Direction</key>
+					<integer>5</integer>
+					<key>Resize Proportionally</key>
+					<false/>
+					<key>Title</key>
+					<string>.talon Display on the Right</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>41</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>5C592B03-1905-41B1-B0F8-D1ECF32D43B7</string>
+						<key>Key Code</key>
+						<integer>27</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>-</string>
+					</dict>
+					<key>Identifier</key>
+					<string>5C592B03-1905-41B1-B0F8-D1ECF32D43B7</string>
+					<key>Loop Through Displays</key>
+					<false/>
+					<key>Move Direction</key>
+					<integer>3</integer>
+					<key>Resize Proportionally</key>
+					<false/>
+					<key>Title</key>
+					<string>.talon Display Above</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>41</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>2A7ACC7C-9C83-41AC-ABB3-2EEB04411B2C</string>
+						<key>Key Code</key>
+						<integer>41</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>;</string>
+					</dict>
+					<key>Identifier</key>
+					<string>2A7ACC7C-9C83-41AC-ABB3-2EEB04411B2C</string>
+					<key>Loop Through Displays</key>
+					<false/>
+					<key>Move Direction</key>
+					<integer>7</integer>
+					<key>Resize Proportionally</key>
+					<false/>
+					<key>Title</key>
+					<string>.talon Display Below</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>52</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>91665BC9-51A3-46EB-AB5C-DF448E86F12A</string>
+						<key>Key Code</key>
+						<integer>14</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>E</string>
+					</dict>
+					<key>Identifier</key>
+					<string>91665BC9-51A3-46EB-AB5C-DF448E86F12A</string>
+					<key>Move Delta</key>
+					<integer>50</integer>
+					<key>Move Delta Unit</key>
+					<integer>0</integer>
+					<key>Move Direction</key>
+					<integer>9</integer>
+					<key>Title</key>
+					<string>.talon Grow Left</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>52</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>35A1D67C-9AC3-45FE-A450-D60FCD9C4BAE</string>
+						<key>Key Code</key>
+						<integer>15</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>R</string>
+					</dict>
+					<key>Identifier</key>
+					<string>35A1D67C-9AC3-45FE-A450-D60FCD9C4BAE</string>
+					<key>Move Delta</key>
+					<integer>50</integer>
+					<key>Move Delta Unit</key>
+					<integer>0</integer>
+					<key>Move Direction</key>
+					<integer>5</integer>
+					<key>Title</key>
+					<string>.talon Grow Right</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>52</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>50BAC3AA-879D-447B-A795-D58D0E2FB35B</string>
+						<key>Key Code</key>
+						<integer>17</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>T</string>
+					</dict>
+					<key>Identifier</key>
+					<string>50BAC3AA-879D-447B-A795-D58D0E2FB35B</string>
+					<key>Move Delta</key>
+					<integer>50</integer>
+					<key>Move Delta Unit</key>
+					<integer>0</integer>
+					<key>Move Direction</key>
+					<integer>3</integer>
+					<key>Title</key>
+					<string>.talon Grow Up</string>
+				</dict>
+				<dict>
+					<key>Action</key>
+					<integer>52</integer>
+					<key>Hot Key</key>
+					<dict>
+						<key>Identifier</key>
+						<string>192A6AE9-4C1C-4BAE-854F-FA2EDBC3F9A9</string>
+						<key>Key Code</key>
+						<integer>16</integer>
+						<key>Modifier Flags</key>
+						<integer>0</integer>
+						<key>Visual Representation</key>
+						<string>Y</string>
+					</dict>
+					<key>Identifier</key>
+					<string>192A6AE9-4C1C-4BAE-854F-FA2EDBC3F9A9</string>
+					<key>Move Delta</key>
+					<integer>50</integer>
+					<key>Move Delta Unit</key>
+					<integer>0</integer>
+					<key>Move Direction</key>
+					<integer>7</integer>
+					<key>Title</key>
+					<string>.talon Grow Down</string>
+				</dict>
+			</array>
+			<key>Identifier</key>
+			<string>TALON-MOOM-COMMANDS-0001</string>
+			<key>Title</key>
+			<string>Talon Window Commands</string>
+		</dict>
+	</array>
+</dict>
+</plist>

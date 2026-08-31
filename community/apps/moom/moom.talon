@@ -14,10 +14,12 @@ window fill top: user.moom("cmd-up")
 window fill bottom: user.moom("cmd-down")
 
 # resize window relative
-window grow left [<user.ordinals>]: user.moom_keys("ctrl-left", ordinals or 1)
-window grow right [<user.ordinals>]: user.moom_keys("ctrl-right", ordinals or 1)
-window grow up [<user.ordinals>]: user.moom_keys("ctrl-up", ordinals or 1)
-window grow down [<user.ordinals>]: user.moom_keys("ctrl-down", ordinals or 1)
+# grow uses Moom custom actions on e/r/t/y: macOS Mission Control
+# owns ctrl-arrows, so those keystrokes never reach Moom.
+window grow left [<user.ordinals>]: user.moom_keys("e", ordinals or 1)
+window grow right [<user.ordinals>]: user.moom_keys("r", ordinals or 1)
+window grow up [<user.ordinals>]: user.moom_keys("t", ordinals or 1)
+window grow down [<user.ordinals>]: user.moom_keys("y", ordinals or 1)
 window shrink left [<user.ordinals>]: user.moom_keys("alt-right", ordinals or 1)
 window shrink right [<user.ordinals>]: user.moom_keys("alt-left", ordinals or 1)
 window shrink top [<user.ordinals>]: user.moom_keys("alt-down", ordinals or 1)

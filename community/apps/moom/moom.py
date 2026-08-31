@@ -13,6 +13,38 @@ def moom_app():
 opened_handler = None
 closed_handler = None
 moom_controls = []
+timeout_job = None
+
+
+def cancel_timeout():
+    global timeout_job
+    if timeout_job:
+        cron.cancel(timeout_job)
+        timeout_job = None
+
+
+def reset_state():
+    """Drop a half-finished command.
+
+    If Moom's controller never opens (hot key unassigned, Moom not running,
+    keystroke swallowed by another app), the win_open handler stays registered
+    forever and every later command silently queues up instead of firing.
+    """
+    global opened_handler, closed_handler, moom_controls
+    cancel_timeout()
+    if opened_handler:
+        try:
+            ui.unregister("win_open", opened_handler)
+        except Exception:
+            pass
+        opened_handler = None
+    if closed_handler:
+        try:
+            ui.unregister("win_close", closed_handler)
+        except Exception:
+            pass
+        closed_handler = None
+    moom_controls = []
 
 
 @dataclass
@@ -39,6 +71,7 @@ def moom_controls_if_opened():
         if win.element.get("AXSubrole") != "AXSystemDialog":
             return
 
+        cancel_timeout()
         ui.unregister("win_open", opened_handler)
         opened_handler = None
 
@@ -67,8 +100,11 @@ def moom_controls_if_opened():
             ui.register("win_close", closed_handler)
             return
 
+    global timeout_job
     opened_handler = win_opened
     ui.register("win_open", win_opened)
+    cancel_timeout()
+    timeout_job = cron.after("2s", reset_state)
 
 
 @mod.action_class

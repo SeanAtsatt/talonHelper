@@ -20,7 +20,7 @@ def auto_cancel():
 
 @imgui.open(x=main_screen.x + main_screen.width / 2.5, y=main_screen.y + main_screen.height / 3)
 def command_mode_gui(gui: imgui.GUI):
-    gui.text("🎤 WISPR COMMAND MODE 🎤")
+    gui.text("SUPERWHISPER COMMAND MODE")
     gui.line()
     gui.text("Next foot press = Command Mode")
 
@@ -73,9 +73,9 @@ class Actions:
         last_press_time = current_time
 
         if command_mode_next:
-            # Command mode: hold down alt-0 for Wispr command mode
-            actions.speech.disable()  # Disable Talon speech in command mode too
-            actions.key("alt:down 0:down")
+            # Command mode: toggle Superwhisper via ctrl-alt-cmd-s
+            actions.speech.disable()
+            actions.key("ctrl-alt-cmd-s")
             command_mode_next = False
             command_mode_active = True
 
@@ -85,20 +85,20 @@ class Actions:
             if timeout_job:
                 cron.cancel(timeout_job)
         else:
-            # Normal mode: drowse Talon and start Whisper dictation
+            # Normal mode: drowse Talon and start Superwhisper push-to-talk
             actions.speech.disable()
-            actions.key("fn:down")
+            actions.key("ctrl-alt-cmd-d:down")
 
     def foot_release_whisper():
         """Handle foot release"""
         global command_mode_active
 
         if command_mode_active:
-            # Release alt-0 for command mode and wake Talon
-            actions.key("0:up alt:up")
-            actions.speech.enable()  # Re-enable Talon speech
+            # Command mode was toggled on; toggle it off and wake Talon
+            actions.key("ctrl-alt-cmd-s")
+            actions.speech.enable()
             command_mode_active = False
         else:
-            # Normal mode: release Fn and wake Talon
-            actions.key("fn:up")
+            # Normal mode: release push-to-talk and wake Talon
+            actions.key("ctrl-alt-cmd-d:up")
             actions.speech.enable()

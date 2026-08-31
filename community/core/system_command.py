@@ -6,6 +6,21 @@ from pathlib import Path
 
 from talon import Module, actions, cron, imgui, ui
 
+# Belt-and-suspenders: use the real (unpatched) os.system / subprocess.Popen
+# so we never re-enter the sandbox when executing approved commands.
+# system_command.py is already in TRUSTED_FILES, so the patched versions would
+# let us through via stack inspection — but calling the originals directly
+# eliminates any edge cases.
+try:
+    import aaa_security
+    from aaa_security import _real_os_system, _real_popen_init
+    _has_sandbox = True
+except ImportError:
+    aaa_security = None
+    _real_os_system = os.system
+    _real_popen_init = subprocess.Popen.__init__
+    _has_sandbox = False
+
 log = logging.getLogger("system_command")
 
 mod = Module()
@@ -72,7 +87,7 @@ def _execute_pending():
     _update_tag()
     log.info(f"[SYSTEM_CMD] EXECUTING: {cmd}")
     if blocking:
-        os.system(cmd)
+        _real_os_system(cmd)
     else:
         subprocess.Popen(cmd, shell=True)
 
@@ -135,7 +150,7 @@ def _request_approval(cmd: str, blocking: bool):
     if cmd in whitelisted_commands:
         log.info(f"[SYSTEM_CMD] WHITELISTED - auto-approved: {cmd}")
         if blocking:
-            os.system(cmd)
+            _real_os_system(cmd)
         else:
             subprocess.Popen(cmd, shell=True)
         return
@@ -234,3 +249,12 @@ class Actions:
         blacklisted_commands.clear()
         _save_list(BLACKLIST_PATH, blacklisted_commands)
         log.info("[SYSTEM_CMD] Blacklist cleared")
+
+    def sandbox_verbose_toggle():
+        """Toggle verbose logging of safe sandbox commands"""
+        if aaa_security:
+            aaa_security.verbose = not aaa_security.verbose
+            state = "ON" if aaa_security.verbose else "OFF"
+            log.info(f"[SANDBOX] Verbose logging: {state}")
+        else:
+            log.warning("[SANDBOX] Sandbox not loaded")

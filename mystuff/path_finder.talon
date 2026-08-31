@@ -1,5 +1,10 @@
 app: path finder
 -
+tag(): user.file_manager
+tag(): user.address
+
+go {user.system_paths}: user.address_navigate(system_paths)
+
 # Path Finder voice commands
 # Generated from Path Finder keyboard shortcuts
 # Re-run ~/.bin/generate_pathfinder_talon.py to update
@@ -235,10 +240,6 @@ enclosing folder:
 # Go/Forward
 forward:
     key(cmd-])
-
-# Go/Go to Folder...
-go to folder:
-    key(shift-cmd-g)
 
 # Go/Open Selection
 open selection:

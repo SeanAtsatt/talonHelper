@@ -6,16 +6,16 @@ Custom Talon voice command enhancements: a security sandbox for plugin execution
 
 ### Directory Navigation with Named Destinations
 
-Say **"manager show"** to display a GUI panel listing all your named destinations — the spoken-form names you can use with **"go \<name\>"** to jump to any directory. Names are pulled from `user.system_paths` and displayed alphabetically with pagination.
+Say **"paths show"** to display a GUI panel listing all your named destinations — the spoken-form names you can use with **"go \<name\>"** to jump to any directory. Names are pulled from `user.system_paths` and displayed alphabetically with pagination.
 
 | Voice Command | Action |
 |---------------|--------|
-| `manager show` | Toggle the destinations panel (plus files/folders pickers) |
-| `manager close` | Hide all panels |
-| `go <name>` | Navigate to the named destination |
+| `paths show` | Toggle the destinations panel |
+| `paths close` | Hide the destinations panel |
+| `go <name>` | Navigate to the named destination (Path Finder) |
 | `save here as <name>` | Save the current directory as a new named destination |
 
-Destinations are stored in `community/core/system_paths-<hostname>.talon-list`. Edit that file directly or use the "save here as" voice command to add new entries.
+Destinations are stored in `mystuff/system_paths.talon-list`. Edit that file directly or use the "save here as" voice command to add new entries.
 
 ### Security Sandbox
 
@@ -44,9 +44,10 @@ The approval GUI (`system_command.py`) presents four options: Allow once, Always
 |------|---------|
 | `aaa_security.py` | Security sandbox - patches os.system and subprocess.Popen |
 | `community/core/system_command.py` | Approval GUI with whitelist/blacklist persistence |
-| `community/tags/file_manager/file_manager.py` | File manager with destinations panel |
-| `community/core/system_paths-*.talon-list` | Named destination definitions (per-hostname) |
-| `community/apps/iterm/iterm.py` | iTerm integration including "save here as" command |
+| `mystuff/paths_panel.py` | Destinations panel (imgui), "paths show" / "paths close" |
+| `mystuff/system_paths.talon-list` | Named destination definitions |
+| `mystuff/path_finder.py` | Path Finder address support, backs "go <name>" |
+| `community/apps/iterm/iterm.py` | Defines the "save here as" action |
 
 #### Trusted Files
 
@@ -60,6 +61,7 @@ These files have been audited and are allowed to execute commands directly:
 | `mystuff/myHelp.py` | Personal helper using osascript |
 | `community/core/edit_text_file/edit_text_file.py` | File editing via subprocess |
 | `community/core/app_switcher/app_switcher.py` | Application switching |
+| `mystuff/default_app.py` | Default-app management via duti |
 | `talon-ai-tools/lib/modelHelpers.py` | AI model integration |
 | `aaa_security.py` | The sandbox itself |
 
